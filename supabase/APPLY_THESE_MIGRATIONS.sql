@@ -1,7 +1,6 @@
 -- ============================================================
 -- PreciousAI Pending Migrations 002–007
--- Paste this entire file into Supabase SQL Editor and click Run.
--- It is safe to run multiple times (all statements are idempotent).
+-- Idempotent — safe to run multiple times.
 -- ============================================================
 
 -- ── Migration 002: onboarding_completed flag ─────────────────
@@ -78,12 +77,15 @@ CREATE INDEX IF NOT EXISTS push_subs_user_idx ON push_subscriptions(user_id);
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- RLS policies using inlined query (avoids dependency on get_my_tenant_id())
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'tenant_isolation'
   ) THEN
     CREATE POLICY "tenant_isolation" ON notifications
-      FOR ALL USING (tenant_id = get_my_tenant_id());
+      FOR ALL USING (
+        tenant_id = (SELECT tenant_id FROM public.tenant_users WHERE id = auth.uid()::text LIMIT 1)
+      );
   END IF;
 END $$;
 
@@ -92,7 +94,9 @@ DO $$ BEGIN
     SELECT 1 FROM pg_policies WHERE tablename = 'push_subscriptions' AND policyname = 'tenant_isolation'
   ) THEN
     CREATE POLICY "tenant_isolation" ON push_subscriptions
-      FOR ALL USING (tenant_id = get_my_tenant_id());
+      FOR ALL USING (
+        tenant_id = (SELECT tenant_id FROM public.tenant_users WHERE id = auth.uid()::text LIMIT 1)
+      );
   END IF;
 END $$;
 
