@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateSubdomain } from '@/lib/utils'
 import { DEFAULT_LEAD_STAGES } from '@preciousai/shared'
+import { sendWelcomeEmail } from '@/lib/services/email'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -110,6 +111,16 @@ export async function POST(request: NextRequest) {
       full_name,
       role: 'owner',
     })
+
+    // Fire-and-forget welcome email — don't block the response
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://preciousai.app'}/${subdomain}/dashboard`
+    sendWelcomeEmail({
+      to: email,
+      ownerName: full_name,
+      storeName: store_name,
+      loginUrl,
+      primaryColor: '#C9A84C',
+    }).catch(console.error)
 
     return NextResponse.json({
       success: true,

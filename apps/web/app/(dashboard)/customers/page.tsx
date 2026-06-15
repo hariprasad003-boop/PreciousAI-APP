@@ -4,6 +4,7 @@ import { getCurrentTenant } from '@/lib/tenant'
 import { formatCurrency, formatDate, getInitials } from '@/lib/utils'
 import { Star, UserPlus, Search } from 'lucide-react'
 import AddCustomerModal from '@/components/customers/add-customer-modal'
+import ImportExportButtons from '@/components/customers/import-export-buttons'
 
 export default async function CustomersPage() {
   const [supabase, tenant] = await Promise.all([createClient(), getCurrentTenant()])
@@ -33,11 +34,14 @@ export default async function CustomersPage() {
             {customers?.length ?? 0} customers · {vipCount} VIP · {formatCurrency(totalLtv, tenant.currency)} lifetime value
           </p>
         </div>
-        <AddCustomerModal
-          countryCode={tenant.country_code}
-          currency={tenant.currency}
-          onCreated={() => {}}
-        />
+        <div className="flex items-center gap-2">
+          <ImportExportButtons />
+          <AddCustomerModal
+            countryCode={tenant.country_code}
+            currency={tenant.currency}
+            onCreated={() => {}}
+          />
+        </div>
       </div>
 
       {/* Stats row */}

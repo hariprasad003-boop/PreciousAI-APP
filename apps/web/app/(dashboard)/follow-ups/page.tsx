@@ -31,8 +31,8 @@ export default async function FollowUpsPage() {
       .from('follow_ups')
       .select(`
         id, type, scheduled_at, message_content, status,
-        lead:leads(id, full_name, phone),
-        customer:customers(id, full_name, phone),
+        lead:leads(id, full_name, phone, country_code),
+        customer:customers(id, full_name, phone, country_code),
         assignee:tenant_users(full_name)
       `)
       .eq('tenant_id', tenant.id)
@@ -163,7 +163,15 @@ function FollowUpCard({ followUp: fu, showActions = false, muted = false }: {
           <p className="text-charcoal-300 text-xs mt-1 italic truncate">"{fu.message_content}"</p>
         )}
       </div>
-      {showActions && <FollowUpActions followUpId={fu.id} />}
+      {showActions && (
+        <FollowUpActions
+          followUpId={fu.id}
+          leadId={fu.lead?.id}
+          leadPhone={fu.lead?.phone ?? fu.customer?.phone}
+          leadCountryCode={fu.lead?.country_code}
+          messageContent={fu.message_content}
+        />
+      )}
     </div>
   )
 }

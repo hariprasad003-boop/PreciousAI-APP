@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // Paths that don't require authentication on tenant subdomains
-const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/webhooks']
+const PUBLIC_PATHS = ['/login', '/signup', '/api/auth', '/api/webhooks', '/api/billing/webhook']
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'preciousai.app'
 
 function getTenantSubdomain(request: NextRequest): string | null {

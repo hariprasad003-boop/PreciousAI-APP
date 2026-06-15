@@ -1,11 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Bell, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { Tenant, TenantUser } from '@preciousai/shared'
 import VoiceRecorder from '@/components/leads/voice-recorder'
+import NotificationBell from '@/components/layout/notification-bell'
 
 interface HeaderProps {
   tenant: Tenant
@@ -31,9 +32,7 @@ export default function DashboardHeader({ tenant, user, stages }: HeaderProps) {
       </div>
       <div className="flex items-center gap-2">
         <VoiceRecorder stages={stages} countryCode={tenant.country_code} />
-        <button className="w-8 h-8 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 flex items-center justify-center text-charcoal-400 hover:text-white transition-colors">
-          <Bell className="w-4 h-4" />
-        </button>
+        <NotificationBell />
         <button
           onClick={handleSignOut}
           className="w-8 h-8 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 flex items-center justify-center text-charcoal-400 hover:text-red-400 transition-colors"

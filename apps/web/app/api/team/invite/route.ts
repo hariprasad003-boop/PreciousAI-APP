@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getCurrentTenant, checkPlanLimit } from '@/lib/tenant'
+import { sendTeamInvite } from '@/lib/services/email'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -55,12 +56,32 @@ export async function POST(request: NextRequest) {
     role,
   })
 
-  // Send password reset email so user can set their own password
-  await supabaseAdmin.auth.admin.generateLink({
+  // Generate invite link so user can set their own password
+  const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
     type: 'invite',
     email,
     options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/login` },
   })
+
+  // Build invite URL — include token and store subdomain for onboarding context
+  const inviteToken = linkData?.properties?.hashed_token ?? authUser.user.id
+  const inviteUrl =
+    `${process.env.NEXT_PUBLIC_APP_URL}/signup` +
+    `?invite=${encodeURIComponent(inviteToken)}` +
+    `&store=${encodeURIComponent(tenant.subdomain)}`
+
+  // Resolve the inviter's name from tenant_users (best-effort — don't block response)
+  const storeName = tenant.branding?.store_name || tenant.name
+  const primaryColor = tenant.branding?.primary_color
+
+  // Fire-and-forget invite email
+  sendTeamInvite({
+    to: email,
+    storeName,
+    inviterName: storeName, // store name as sender context since we don't have current user here
+    inviteUrl,
+    primaryColor,
+  }).catch(console.error)
 
   return NextResponse.json({ success: true })
 }

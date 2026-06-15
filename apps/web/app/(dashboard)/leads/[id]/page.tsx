@@ -7,6 +7,7 @@ import { ArrowLeft, Phone, MessageCircle, Instagram, User, Calendar, Tag } from 
 import LeadActions from '@/components/leads/lead-actions'
 import AddNoteModal from '@/components/leads/add-note-modal'
 import AddFollowUpModal from '@/components/leads/add-followup-modal'
+import AIFollowUpModal from '@/components/leads/ai-followup-modal'
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -200,6 +201,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-display text-sm font-semibold text-white">Follow-ups</h2>
               <AddFollowUpModal leadId={id} />
+            </div>
+            <div className="mb-3">
+              <AIFollowUpModal leadId={id} />
             </div>
             {lead.follow_ups && (lead.follow_ups as any[]).length > 0 ? (
               <div className="space-y-3">
