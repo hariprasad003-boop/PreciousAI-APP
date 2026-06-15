@@ -39,7 +39,6 @@ export default async function CustomersPage() {
           <AddCustomerModal
             countryCode={tenant.country_code}
             currency={tenant.currency}
-            onCreated={() => {}}
           />
         </div>
       </div>

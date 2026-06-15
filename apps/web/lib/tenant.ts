@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { createAdminClient } from './supabase/server'
+import { createAdminClient, createClient } from './supabase/server'
 import { PLANS, type PlanId } from '@preciousai/shared'
 import type { Tenant } from '@preciousai/shared'
 

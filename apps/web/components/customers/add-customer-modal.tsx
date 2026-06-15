@@ -26,7 +26,7 @@ type FormData = z.infer<typeof schema>
 interface AddCustomerModalProps {
   countryCode: string
   currency: string
-  onCreated: (customer: unknown) => void
+  onCreated?: (customer: unknown) => void
 }
 
 const inputCls = 'w-full bg-charcoal-800 border border-charcoal-700 focus:border-gold-500 rounded-lg px-3 py-2 text-white placeholder:text-charcoal-500 outline-none transition-colors text-sm'
@@ -64,7 +64,7 @@ export default function AddCustomerModal({ countryCode, currency, onCreated }: A
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? 'Failed to create customer')
       toast.success('Customer added')
-      onCreated(result.customer)
+      onCreated?.(result.customer)
       reset()
       setMetalPrefs([])
       setStonePrefs([])
