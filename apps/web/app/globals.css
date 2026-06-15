@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.5rem;
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-inter: 'Inter', system-ui, sans-serif;
+
+  /* Tenant CSS variables — overridden per-tenant via inline style */
+  --tenant-primary: #C9A84C;
+  --tenant-accent: #1A1A2E;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-charcoal-950 text-white antialiased;
+    font-family: var(--font-inter);
+  }
+  h1, h2, h3 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .gold-gradient {
+    background: linear-gradient(135deg, #C9A84C 0%, #e6d5a0 50%, #C9A84C 100%);
+  }
+  .text-gold-gradient {
+    background: linear-gradient(135deg, #C9A84C, #f0e0a0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .dark-glass {
+    background: rgba(26, 26, 46, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-in-out;
+  }
+}

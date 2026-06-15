@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── TENANT FOUNDATION ───────────────────────────────────────────────────────
+
+model Tenant {
+  id           String   @id @default(cuid())
+  name         String
+  subdomain    String   @unique
+  plan         String   @default("starter") // starter | pro | enterprise
+  branding     Json     @default("{\"primary_color\":\"#C9A84C\",\"accent_color\":\"#1A1A2E\",\"store_name\":\"\"}")
+  currency     String   @default("AED") // AED | INR | USD
+  country_code String   @default("+971")
+  is_active             Boolean  @default(true)
+  onboarding_completed  Boolean  @default(false)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  locations       TenantLocation[]
+  users           TenantUser[]
+  whatsapp_config TenantWhatsappConfig?
+  lead_stages     LeadStage[]
+  leads           Lead[]
+  customers       Customer[]
+  interactions    Interaction[]
+  follow_ups      FollowUp[]
+  events          Event[]
+  ai_scores       AiScore[]
+  wa_messages     WhatsappMessage[]
+
+  @@map("tenants")
+}
+
+model TenantLocation {
+  id        String   @id @default(cuid())
+  tenant_id String
+  name      String
+  city      String?
+  country   String?
+  is_active Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  tenant    Tenant       @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  users     TenantUser[]
+  leads     Lead[]
+  customers Customer[]
+
+  @@map("tenant_locations")
+}
+
+model TenantUser {
+  id          String   @id @default(cuid())
+  tenant_id   String
+  location_id String?
+  email       String
+  full_name   String
+  role        String   @default("sales_staff") // owner | manager | sales_staff | readonly
+  is_active   Boolean  @default(true)
+  avatar_url  String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  location TenantLocation? @relation(fields: [location_id], references: [id])
+
+  assigned_leads     Lead[]       @relation("AssignedLeads")
+  assigned_followups FollowUp[]   @relation("AssignedFollowUps")
+  interactions       Interaction[]
+
+  @@unique([tenant_id, email])
+  @@map("tenant_users")
+}
+
+model TenantWhatsappConfig {
+  id                    String    @id @default(cuid())
+  tenant_id             String    @unique
+  phone_number_id       String
+  access_token          String
+  verify_token          String    @default(cuid())
+  webhook_configured_at DateTime?
+  is_active             Boolean   @default(false)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("tenant_whatsapp_configs")
+}
+
+// ─── LEAD PIPELINE ───────────────────────────────────────────────────────────
+
+model LeadStage {
+  id          String   @id @default(cuid())
+  tenant_id   String
+  name        String
+  color       String   @default("#6366F1")
+  order_index Int      @default(0)
+  created_at  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  leads  Lead[]
+
+  @@map("lead_stages")
+}
+
+model Lead {
+  id                String    @id @default(cuid())
+  tenant_id         String
+  location_id       String?
+  stage_id          String
+  assigned_to       String?
+  source            String    @default("manual") // whatsapp | instagram | walk_in | phone | manual
+  full_name         String
+  phone             String
+  email             String?
+  country_code      String    @default("+971")
+  raw_message       String?
+  intent_score      Float?
+  budget_amount     Float?
+  budget_currency   String?
+  occasion          String?
+  category_interest String[]  @default([])
+  tags              String[]  @default([])
+  voice_note_url    String?
+  converted_at      DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  last_contacted_at DateTime?
+
+  tenant       Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  location     TenantLocation? @relation(fields: [location_id], references: [id])
+  stage        LeadStage       @relation(fields: [stage_id], references: [id])
+  assigned_user TenantUser?    @relation("AssignedLeads", fields: [assigned_to], references: [id])
+
+  customer     Customer?
+  interactions Interaction[]
+  follow_ups   FollowUp[]
+  wa_messages  WhatsappMessage[]
+
+  @@map("leads")
+}
+
+// ─── CUSTOMER 360 ────────────────────────────────────────────────────────────
+
+model Customer {
+  id                   String   @id @default(cuid())
+  tenant_id            String
+  lead_id              String?  @unique
+  location_id          String?
+  full_name            String
+  phone                String
+  email                String?
+  dob                  DateTime?
+  anniversary_date     DateTime?
+  city                 String?
+  country_code         String   @default("+971")
+  metal_pref           String[] @default([])
+  stone_pref           String[] @default([])
+  style_pref           String[] @default([])
+  favourite_categories String[] @default([])
+  notes                String?
+  is_vip               Boolean  @default(false)
+  lifetime_value       Float    @default(0)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  tenant          Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  lead            Lead?           @relation(fields: [lead_id], references: [id])
+  location        TenantLocation? @relation(fields: [location_id], references: [id])
+
+  family_members  CustomerFamily[]
+  purchase_history PurchaseHistory[]
+  interactions    Interaction[]
+  follow_ups      FollowUp[]
+  events          Event[]
+  ai_score        AiScore?
+  wa_messages     WhatsappMessage[]
+
+  @@map("customers")
+}
+
+model CustomerFamily {
+  id               String    @id @default(cuid())
+  customer_id      String
+  tenant_id        String
+  name             String
+  relation         String    // spouse | child | parent | sibling | other
+  dob              DateTime?
+  anniversary_date DateTime?
+  notes            String?
+  created_at       DateTime  @default(now())
+
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@map("customer_family")
+}
+
+model PurchaseHistory {
+  id               String   @id @default(cuid())
+  customer_id      String
+  tenant_id        String
+  purchase_date    DateTime
+  amount           Float
+  currency         String   @default("AED")
+  category         String?
+  item_description String?
+  occasion         String?
+  staff_id         String?
+  location_id      String?
+  image_url        String?
+  created_at       DateTime @default(now())
+
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@map("purchase_history")
+}
+
+// ─── INTERACTIONS & MESSAGING ─────────────────────────────────────────────────
+
+model Interaction {
+  id          String   @id @default(cuid())
+  tenant_id   String
+  lead_id     String?
+  customer_id String?
+  staff_id    String?
+  type        String   // call | visit | whatsapp | instagram | voice_note | email
+  direction   String   @default("inbound") // inbound | outbound
+  content     String?
+  media_url   String?
+  created_at  DateTime @default(now())
+
+  tenant   Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  lead     Lead?       @relation(fields: [lead_id], references: [id])
+  customer Customer?   @relation(fields: [customer_id], references: [id])
+  staff    TenantUser? @relation(fields: [staff_id], references: [id])
+
+  @@map("interactions")
+}
+
+model WhatsappMessage {
+  id           String    @id @default(cuid())
+  tenant_id    String
+  wa_message_id String?  @unique
+  direction    String    // inbound | outbound
+  from_number  String
+  to_number    String
+  message_type String    @default("text") // text | voice | image | document
+  content      String?
+  media_url    String?
+  lead_id      String?
+  customer_id  String?
+  read_at      DateTime?
+  created_at   DateTime  @default(now())
+
+  tenant   Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [lead_id], references: [id])
+  customer Customer? @relation(fields: [customer_id], references: [id])
+
+  @@map("whatsapp_messages")
+}
+
+// ─── FOLLOW-UPS & EVENTS ─────────────────────────────────────────────────────
+
+model FollowUp {
+  id              String   @id @default(cuid())
+  tenant_id       String
+  lead_id         String?
+  customer_id     String?
+  assigned_to     String?
+  scheduled_at    DateTime
+  type            String   // whatsapp | call | visit | email
+  message_content String?
+  status          String   @default("pending") // pending | sent | done | skipped
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tenant   Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  lead     Lead?       @relation(fields: [lead_id], references: [id])
+  customer Customer?   @relation(fields: [customer_id], references: [id])
+  assignee TenantUser? @relation("AssignedFollowUps", fields: [assigned_to], references: [id])
+
+  @@map("follow_ups")
+}
+
+model Event {
+  id                  String    @id @default(cuid())
+  tenant_id           String
+  customer_id         String
+  event_type          String    // birthday | anniversary | custom
+  event_date          DateTime
+  reminder_days_before Int      @default(7)
+  last_triggered_at   DateTime?
+  created_at          DateTime  @default(now())
+
+  tenant   Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@map("events")
+}
+
+// ─── AI SCORING ───────────────────────────────────────────────────────────────
+
+model AiScore {
+  id                        String    @id @default(cuid())
+  tenant_id                 String
+  customer_id               String    @unique
+  vip_score                 Float     @default(0)
+  churn_risk                Float     @default(0)
+  lifetime_value_predicted  Float     @default(0)
+  next_purchase_category    String?
+  next_purchase_date_est    DateTime?
+  suggestions               Json      @default("[]")
+  scored_at                 DateTime  @default(now())
+
+  tenant   Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@map("ai_scores")
+}
