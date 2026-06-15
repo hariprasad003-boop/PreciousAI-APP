@@ -45,9 +45,6 @@ export async function PATCH(
 
   const updates: Record<string, any> = { updated_at: new Date().toISOString() }
   if (status) updates.status = status === 'completed' ? 'done' : status
-  if (status === 'done' || status === 'completed') {
-    updates.completed_at = new Date().toISOString()
-  }
   if (message_content !== undefined) updates.message_content = message_content
   if (scheduled_at !== undefined) updates.scheduled_at = scheduled_at
 

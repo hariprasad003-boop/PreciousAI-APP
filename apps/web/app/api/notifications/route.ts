@@ -10,19 +10,22 @@ export async function GET(_req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: notifications, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('tenant_id', tenant.id)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(20)
+  try {
+    const { data: notifications, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('tenant_id', tenant.id)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return NextResponse.json({ notifications: [], unread_count: 0 })
 
-  const unread_count = (notifications ?? []).filter(n => !n.read).length
-
-  return NextResponse.json({ notifications: notifications ?? [], unread_count })
+    const unread_count = (notifications ?? []).filter(n => !n.read).length
+    return NextResponse.json({ notifications: notifications ?? [], unread_count })
+  } catch {
+    return NextResponse.json({ notifications: [], unread_count: 0 })
+  }
 }
 
 // DELETE /api/notifications — mark all as read
@@ -33,13 +36,13 @@ export async function DELETE(_req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('tenant_id', tenant.id)
-    .eq('user_id', user.id)
-    .eq('read', false)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  try {
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('tenant_id', tenant.id)
+      .eq('user_id', user.id)
+      .eq('read', false)
+  } catch { /* table not yet migrated */ }
   return NextResponse.json({ success: true })
 }

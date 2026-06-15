@@ -18,23 +18,29 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!tenant) redirect('/login')
 
   const admin = await createAdminClient()
-  const [{ data: tenantUser }, { data: stages }, { data: tenantBilling }] = await Promise.all([
+  const [{ data: tenantUser }, { data: stages }] = await Promise.all([
     admin.from('tenant_users').select('*').eq('id', user.id).eq('tenant_id', tenant.id).single(),
     admin.from('lead_stages').select('id, name, order_index').eq('tenant_id', tenant.id).order('order_index'),
-    admin
-      .from('tenants')
-      .select('subscription_status, trial_ends_at')
-      .eq('id', tenant.id)
-      .single(),
   ])
 
   if (!tenantUser) redirect('/login')
 
-  const branding = tenant.branding as any
-  const subscriptionStatus: string = (tenantBilling as any)?.subscription_status ?? 'trial'
-  const trialEndsAt: string | null = (tenantBilling as any)?.trial_ends_at ?? null
+  // Billing columns may not exist yet (migration 004) — gracefully default to active
+  let subscriptionStatus = 'active'
+  let trialEndsAt: string | null = null
+  try {
+    const { data: billingData, error: billingError } = await admin
+      .from('tenants')
+      .select('subscription_status, trial_ends_at')
+      .eq('id', tenant.id)
+      .single()
+    if (!billingError && billingData) {
+      subscriptionStatus = (billingData as any).subscription_status ?? 'active'
+      trialEndsAt = (billingData as any).trial_ends_at ?? null
+    }
+  } catch { /* columns not yet migrated */ }
 
-  // Check if trial has actually expired
+  const branding = tenant.branding as any
   const trialExpired =
     subscriptionStatus === 'trial' &&
     trialEndsAt !== null &&

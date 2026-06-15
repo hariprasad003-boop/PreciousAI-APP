@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Instagram, Wand2, User, Phone, Tag, ChevronRight, Loader2 } from 'lucide-react'
+import { Instagram, Wand2, Tag, ChevronRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface Stage { id: string; name: string; order_index: number }
 
 export default function InstagramPage() {
   const router = useRouter()
@@ -11,9 +13,20 @@ export default function InstagramPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-
-  // Form state for saving
+  const [stages, setStages] = useState<Stage[]>([])
   const [form, setForm] = useState({ full_name: '', phone: '', stage_id: '' })
+
+  useEffect(() => {
+    fetch('/api/leads/stages')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.stages?.length) {
+          setStages(d.stages)
+          setForm(f => ({ ...f, stage_id: d.stages[0].id }))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   async function parse() {
     if (!text.trim()) return
@@ -45,22 +58,25 @@ export default function InstagramPage() {
       toast.error('Name and phone are required')
       return
     }
+    if (!form.stage_id) {
+      toast.error('Please select a pipeline stage')
+      return
+    }
     setSaving(true)
     try {
       const payload: any = {
         full_name: form.full_name,
         phone: form.phone,
+        stage_id: form.stage_id,
         source: 'instagram',
         raw_message: text,
         ...(result && {
-          intent_score: result.intent_score,
           budget_amount: result.budget_amount,
           budget_currency: result.budget_currency,
           occasion: result.occasion,
           category_interest: result.category_interest ?? [],
           tags: result.tags ?? [],
         }),
-        ...(form.stage_id && { stage_id: form.stage_id }),
       }
 
       const res = await fetch('/api/leads', {
@@ -80,6 +96,8 @@ export default function InstagramPage() {
     }
   }
 
+  const inputCls = 'w-full bg-charcoal-800 border border-charcoal-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500'
+
   return (
     <div className="animate-fade-in max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
@@ -97,7 +115,7 @@ export default function InstagramPage() {
         <textarea
           className="w-full bg-charcoal-800 border border-charcoal-700 rounded-xl p-4 text-white text-sm leading-relaxed resize-none focus:outline-none focus:border-gold-500 placeholder-charcoal-600"
           rows={6}
-          placeholder={`Hi, I saw your gold necklace post. Looking for something like that for my wife's birthday next month. Budget around 40k. She loves diamonds.`}
+          placeholder="Hi, I saw your gold necklace post. Looking for something like that for my wife's birthday next month. Budget around 40k. She loves diamonds."
           value={text}
           onChange={e => setText(e.target.value)}
         />
@@ -117,7 +135,6 @@ export default function InstagramPage() {
             <Tag className="w-4 h-4 text-gold-500" /> AI-Extracted Profile
           </h2>
 
-          {/* AI data preview */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             {result.intent_score != null && (
               <Stat label="Intent Score" value={`${Math.round(result.intent_score * 100)}%`} />
@@ -127,7 +144,7 @@ export default function InstagramPage() {
             )}
             {result.occasion && <Stat label="Occasion" value={result.occasion} />}
             {result.category_interest?.length > 0 && (
-              <Stat label="Category Interest" value={result.category_interest.join(', ')} />
+              <Stat label="Category" value={result.category_interest.join(', ')} />
             )}
           </div>
 
@@ -139,7 +156,6 @@ export default function InstagramPage() {
             </div>
           )}
 
-          {/* Save form */}
           <div className="border-t border-charcoal-800 pt-5 space-y-3">
             <p className="text-charcoal-400 text-xs uppercase tracking-wider">Confirm & Save Lead</p>
             <div className="grid grid-cols-2 gap-3">
@@ -149,7 +165,7 @@ export default function InstagramPage() {
                   type="text"
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                  className="w-full bg-charcoal-800 border border-charcoal-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500"
+                  className={inputCls}
                   placeholder="From DM or add manually"
                 />
               </div>
@@ -159,14 +175,27 @@ export default function InstagramPage() {
                   type="text"
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full bg-charcoal-800 border border-charcoal-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500"
+                  className={inputCls}
                   placeholder="+91 99999 00000"
                 />
               </div>
             </div>
+            <div>
+              <label className="block text-charcoal-400 text-xs mb-1">Pipeline Stage *</label>
+              <select
+                value={form.stage_id}
+                onChange={e => setForm(f => ({ ...f, stage_id: e.target.value }))}
+                className={inputCls}
+              >
+                {stages.length === 0 && <option value="">Loading stages…</option>}
+                {stages.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={saveLead}
-              disabled={saving}
+              disabled={saving || !form.stage_id}
               className="w-full flex items-center justify-center gap-2 py-2.5 gold-gradient text-charcoal-950 font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}

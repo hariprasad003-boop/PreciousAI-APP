@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const [supabase, tenant] = await Promise.all([createClient(), getCurrentTenant()])
   if (!tenant) return null
 
-  const [{ data: users }, { data: locations }, { data: waConfig }, { data: tenantBilling }] =
+  const [{ data: users }, { data: locationsRaw }, { data: waConfig }] =
     await Promise.all([
       supabase
         .from('tenant_users')
@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
       supabase
         .from('tenant_locations')
-        .select('id, name, address, city, country, phone, is_active, is_primary, created_at')
+        .select('id, name, city, country, is_active, created_at')
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: true }),
 
@@ -30,13 +30,26 @@ export default async function SettingsPage() {
         .select('id, phone_number_id, is_active, webhook_configured_at')
         .eq('tenant_id', tenant.id)
         .maybeSingle(),
-
-      supabase
-        .from('tenants')
-        .select('stripe_customer_id, subscription_status, trial_ends_at, current_period_end')
-        .eq('id', tenant.id)
-        .single(),
     ])
+
+  // Billing columns may not exist yet (migration 004) — default to null
+  let tenantBilling: { stripe_customer_id: string | null; subscription_status: string | null; trial_ends_at: string | null; current_period_end: string | null } | null = null
+  try {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('stripe_customer_id, subscription_status, trial_ends_at, current_period_end')
+      .eq('id', tenant.id)
+      .single()
+    if (!error) tenantBilling = data as typeof tenantBilling
+  } catch { /* columns not yet migrated */ }
+
+  // Location extras (address, phone, is_primary) added in migration 006 — default if missing
+  const locations = (locationsRaw ?? []).map(l => ({
+    ...l,
+    address: (l as any).address ?? null,
+    phone: (l as any).phone ?? null,
+    is_primary: (l as any).is_primary ?? false,
+  }))
 
   const plan = PLANS[tenant.plan] ?? PLANS.starter
   const branding = tenant.branding as {
